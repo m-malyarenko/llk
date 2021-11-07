@@ -94,10 +94,46 @@ impl LlkGrammar {
         Ok(first_set)
     }
 
-    pub fn follow(&self, symbol: char) -> HashSet<String> {
-        let mut follow_set = HashSet::new();
+    pub fn follow(&self, nterm: char) -> Result<HashSet<String>, LlkError> {
+        if !self.is_nterm(nterm) {
+            return Err(LlkError::FollowNotForNterm);
+        }
 
-        follow_set
+        fn inner(
+            grammar: &LlkGrammar,
+            nterm: char,
+            visited: &mut HashSet<(char, String)>,
+        ) -> HashSet<String> {
+            let mut follow_set = HashSet::new();
+
+            for &symbol in &grammar.nterm_symbols {
+                let derivatives: Vec<String> =
+                    grammar.derive(symbol).drain(..).filter_map(|d| d).collect();
+
+                for derivative in derivatives {
+                    if let Some(suffixes) = grammar.after(&derivative, nterm) {
+                        let mut suffixes_first_set: HashSet<Option<String>> = suffixes
+                            .iter()
+                            .flat_map(|s| grammar.first(s).unwrap())
+                            .collect();
+
+                        if symbol != nterm
+                            && !visited.contains(&(symbol, derivative.clone()))
+                            && (derivative.ends_with(nterm) || suffixes_first_set.contains(&None))
+                        {
+                            visited.insert((symbol, derivative));
+                            follow_set.extend(inner(grammar, symbol, visited));
+                        }
+
+                        follow_set.extend(suffixes_first_set.drain().filter_map(|s| s))
+                    }
+                }
+            }
+
+            follow_set
+        }
+
+        Ok(inner(self, nterm, &mut HashSet::new()))
     }
 }
 
@@ -166,6 +202,26 @@ impl LlkGrammar {
 
         inner(self, string, self.lookahead).drain(..).collect()
     }
+
+    fn after<'a>(&self, string: &'a str, nterm: char) -> Option<Vec<&'a str>> {
+        if string.is_empty() || !string.contains(nterm) {
+            return None;
+        }
+
+        let mut suffixes = Vec::new();
+
+        /* Find all x suffixes in wAx production derivation */
+        let mut current_suffix = string;
+        while let Some((_prefix, suffix)) = current_suffix.split_once(nterm) {
+            if !suffix.is_empty() {
+                /* If production is B => wAx push x to the list */
+                suffixes.push(suffix);
+            }
+            current_suffix = suffix;
+        }
+
+        Some(suffixes)
+    }
 }
 
 mod grammar_assert {
@@ -221,7 +277,7 @@ fn first_set_test() {
 
     let mut grammar = LlkGrammar {
         term_symbols: vec!['a', 'b', '$'].drain(..).collect(),
-        nterm_symbols: vec!['A'].drain(..).collect(),
+        nterm_symbols: vec!['S', 'A'].drain(..).collect(),
         start_symbol: 'S',
         lookahead: 3,
         productions: HashMap::new(),
@@ -274,4 +330,37 @@ fn first_set_test() {
         grammar.first("aA").unwrap(),
         HashSet::from_iter(vec![Some("aaa".to_string()), Some("aa".to_string())])
     );
+}
+
+#[test]
+fn follow_set_test() {
+    use std::iter::FromIterator;
+
+    let mut grammar = LlkGrammar {
+        term_symbols: vec!['a', 'b', '$'].drain(..).collect(),
+        nterm_symbols: vec!['S', 'A'].drain(..).collect(),
+        start_symbol: 'S',
+        lookahead: 3,
+        productions: HashMap::new(),
+    };
+
+    grammar
+        .productions
+        .insert('S', vec![Some("Ab$".to_string())]);
+    grammar
+        .productions
+        .insert('A', vec![Some("aA".to_string()), Some("a".to_string())]);
+
+        assert_eq!(
+            grammar.follow('S').unwrap(),
+            HashSet::from_iter(vec![])
+        );
+        assert_eq!(
+            grammar.follow('A').unwrap(),
+            HashSet::from_iter(vec!["b$".to_string()])
+        );
+        assert!(matches!(
+            grammar.follow('a'),
+            Err(LlkError::FollowNotForNterm)
+        ));
 }
