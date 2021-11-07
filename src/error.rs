@@ -5,6 +5,7 @@ use std::fmt;
 pub enum LlkError {
     UnknownSymbol(char),
     InvalidEof,
+    FollowNotForNterm,
 }
 
 impl fmt::Display for LlkError {
