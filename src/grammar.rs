@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use super::LlkLut;
 use crate::error::LlkError;
 
 pub type LlkProduction = (char, Option<String>);
@@ -115,7 +116,7 @@ impl LlkGrammar {
                 let prod_nterm = production.0;
                 let prod_derivative = (&production.1).as_ref().unwrap();
 
-                if let Some(suffixes) = grammar.after(prod_derivative, nterm) {
+                if let Some(suffixes) = grammar.get_nterm_suffixes(prod_derivative, nterm) {
                     let mut suffixes_first_set: HashSet<Option<String>> = suffixes
                         .iter()
                         .flat_map(|s| grammar.first(s).unwrap())
@@ -195,7 +196,7 @@ impl LlkGrammar {
                         .derive(leftmost_nterm)
                         .drain(..)
                         .map(|d| d.unwrap_or_default())
-                        .filter(|s| !s.starts_with(leftmost_nterm)) // TODO Сомнительное рещение для предотвращения беск. рекурсии
+                        .filter(|s| !s.starts_with(leftmost_nterm))
                         .flat_map(|s| inner(grammar, &(s + suffix), prefix_rest_len))
                         .map(|s| {
                             format!(
@@ -219,7 +220,7 @@ impl LlkGrammar {
         inner(self, string, self.lookahead).drain(..).collect()
     }
 
-    fn after<'a>(&self, string: &'a str, nterm: char) -> Option<Vec<&'a str>> {
+    fn get_nterm_suffixes<'a>(&self, string: &'a str, nterm: char) -> Option<Vec<&'a str>> {
         if string.is_empty() || !string.contains(nterm) {
             return None;
         }
