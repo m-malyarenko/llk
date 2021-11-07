@@ -4,11 +4,11 @@ use std::collections::HashSet;
 use crate::error::LlkError;
 
 pub struct LlkGrammar {
-    pub term_symbols: HashSet<char>,
-    pub nterm_symbols: HashSet<char>,
-    pub start_symbol: char,
-    pub lookahead: usize,
-    pub productions: HashMap<char, Vec<Option<String>>>,
+    term_symbols: HashSet<char>,
+    nterm_symbols: HashSet<char>,
+    start_symbol: char,
+    lookahead: usize,
+    productions: HashMap<char, Vec<Option<String>>>,
 }
 
 pub(super) const EOF: char = '\u{0003}';
@@ -28,7 +28,9 @@ impl LlkGrammar {
         unimplemented!()
     }
 
-    pub fn first(&self, string: &str) -> HashSet<Option<String>> {
+    pub fn first(&self, string: &str) -> Result<HashSet<Option<String>>, LlkError> {
+        grammar_assert::assert_input_string(self, string)?;
+
         let mut first_set = HashSet::new();
 
         if string.is_empty() {
@@ -57,7 +59,7 @@ impl LlkGrammar {
                 for derivative in derivatives {
                     /* Skip symbols that have ε in their FIRST set */
                     let non_empty_suffix = if let Some(suffix) = derivative
-                        .strip_prefix(|c: char| self.first(&c.to_string()).contains(&None))
+                        .strip_prefix(|c: char| self.first(&c.to_string()).unwrap().contains(&None))
                     {
                         suffix
                     } else {
@@ -81,7 +83,7 @@ impl LlkGrammar {
             /* Most often used to define the FIRST set of the RHS of a production */
             if string
                 .chars()
-                .all(|symbol| self.first(&symbol.to_string()).contains(&None))
+                .all(|symbol| self.first(&symbol.to_string()).unwrap().contains(&None))
             {
                 first_set.insert(None);
             };
@@ -89,11 +91,13 @@ impl LlkGrammar {
             first_set.extend(self.get_term_prefixes(string).drain().map(|s| Some(s)))
         }
 
-        first_set
+        Ok(first_set)
     }
 
-    pub fn follow(&self, nterm: char) -> HashSet<String> {
-        unimplemented!()
+    pub fn follow(&self, symbol: char) -> HashSet<String> {
+        let mut follow_set = HashSet::new();
+
+        follow_set
     }
 }
 
@@ -169,28 +173,45 @@ mod grammar_assert {
     use crate::error::LlkError;
     use std::collections::HashSet;
 
-    fn assert_grammar(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub(super) fn assert_grammar(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    fn assert_symbols(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub(super) fn assert_symbols(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    fn assert_rules(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub(super) fn assert_rules(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    fn assert_lookahead(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub(super) fn assert_lookahead(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    fn get_reachable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
+    pub(super) fn get_reachable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
         unimplemented!()
     }
 
-    fn get_resolvable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
+    pub(super) fn get_resolvable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
         unimplemented!()
+    }
+
+    pub(super) fn assert_input_string(grammar: &LlkGrammar, string: &str) -> Result<(), LlkError> {
+        let unknown_symbol = string
+            .chars()
+            .find(|c| !grammar.is_term(*c) && !grammar.is_nterm(*c));
+
+        if let Some(symbol) = unknown_symbol {
+            Err(LlkError::UnknownSymbol(symbol))
+        } else if string.contains(super::EOF)
+            && !string.ends_with(super::EOF)
+            && !string.chars().filter(|c| *c == super::EOF).count() == 1
+        {
+            Err(LlkError::InvalidEof)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -214,7 +235,7 @@ fn first_set_test() {
         .insert('A', vec![Some("aA".to_string()), Some("a".to_string())]);
 
     assert_eq!(
-        grammar.first("S"),
+        grammar.first("S").unwrap(),
         HashSet::from_iter(vec![
             Some("ab$".to_string()),
             Some("aab".to_string()),
@@ -222,7 +243,7 @@ fn first_set_test() {
         ])
     );
     assert_eq!(
-        grammar.first("A"),
+        grammar.first("A").unwrap(),
         HashSet::from_iter(vec![
             Some("a".to_string()),
             Some("aa".to_string()),
@@ -230,19 +251,19 @@ fn first_set_test() {
         ])
     );
     assert_eq!(
-        grammar.first("a"),
+        grammar.first("a").unwrap(),
         HashSet::from_iter(vec![Some("a".to_string())])
     );
     assert_eq!(
-        grammar.first("b"),
+        grammar.first("b").unwrap(),
         HashSet::from_iter(vec![Some("b".to_string())])
     );
     assert_eq!(
-        grammar.first("$"),
+        grammar.first("$").unwrap(),
         HashSet::from_iter(vec![Some("$".to_string())])
     );
     assert_eq!(
-        grammar.first("Ab$"),
+        grammar.first("Ab$").unwrap(),
         HashSet::from_iter(vec![
             Some("ab$".to_string()),
             Some("aab".to_string()),
@@ -250,7 +271,7 @@ fn first_set_test() {
         ])
     );
     assert_eq!(
-        grammar.first("aA"),
+        grammar.first("aA").unwrap(),
         HashSet::from_iter(vec![Some("aaa".to_string()), Some("aa".to_string())])
     );
 }
