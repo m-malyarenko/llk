@@ -10,9 +10,11 @@ pub use crate::error::LlkError;
 pub use crate::grammar::LlkGrammar;
 pub use crate::tree::LlkTree;
 
+pub type LlkLut = HashMap<(char, String), String>;
+
 pub struct Llk {
     grammar: LlkGrammar,
-    lut: HashMap<(char, String), String>,
+    lut: LlkLut,
     stack: RefCell<Vec<char>>,
 }
 
