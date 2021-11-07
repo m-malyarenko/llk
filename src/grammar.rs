@@ -1,14 +1,15 @@
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::error::LlkError;
+
+pub type LlkProduction = (char, Option<String>);
 
 pub struct LlkGrammar {
     term_symbols: HashSet<char>,
     nterm_symbols: HashSet<char>,
     start_symbol: char,
     lookahead: usize,
-    productions: HashMap<char, Vec<Option<String>>>,
+    productions: Vec<LlkProduction>,
 }
 
 pub(super) const EOF: char = '\u{0003}';
@@ -99,34 +100,36 @@ impl LlkGrammar {
             return Err(LlkError::FollowNotForNterm);
         }
 
-        fn inner(
-            grammar: &LlkGrammar,
+        fn inner<'a>(
+            grammar: &'a LlkGrammar,
             nterm: char,
-            visited: &mut HashSet<(char, String)>,
+            visited: &mut HashSet<&'a LlkProduction>,
         ) -> HashSet<String> {
             let mut follow_set = HashSet::new();
 
-            for &symbol in &grammar.nterm_symbols {
-                let derivatives: Vec<String> =
-                    grammar.derive(symbol).drain(..).filter_map(|d| d).collect();
+            for production in &grammar.productions {
+                if let None = production.1 {
+                    continue;
+                }
 
-                for derivative in derivatives {
-                    if let Some(suffixes) = grammar.after(&derivative, nterm) {
-                        let mut suffixes_first_set: HashSet<Option<String>> = suffixes
-                            .iter()
-                            .flat_map(|s| grammar.first(s).unwrap())
-                            .collect();
+                let prod_nterm = production.0;
+                let prod_derivative = (&production.1).as_ref().unwrap();
 
-                        if symbol != nterm
-                            && !visited.contains(&(symbol, derivative.clone()))
-                            && (derivative.ends_with(nterm) || suffixes_first_set.contains(&None))
-                        {
-                            visited.insert((symbol, derivative));
-                            follow_set.extend(inner(grammar, symbol, visited));
-                        }
+                if let Some(suffixes) = grammar.after(prod_derivative, nterm) {
+                    let mut suffixes_first_set: HashSet<Option<String>> = suffixes
+                        .iter()
+                        .flat_map(|s| grammar.first(s).unwrap())
+                        .collect();
 
-                        follow_set.extend(suffixes_first_set.drain().filter_map(|s| s))
+                    if prod_nterm != nterm
+                        && !visited.contains(production)
+                        && (prod_derivative.ends_with(nterm) || suffixes_first_set.contains(&None))
+                    {
+                        visited.insert(production);
+                        follow_set.extend(inner(grammar, prod_nterm, visited));
                     }
+
+                    follow_set.extend(suffixes_first_set.drain().filter_map(|s| s))
                 }
             }
 
@@ -143,16 +146,29 @@ impl LlkGrammar {
     }
 
     fn is_nterm(&self, symbol: char) -> bool {
-        self.nterm_symbols.contains(&symbol) || self.start_symbol == symbol
+        self.nterm_symbols.contains(&symbol)
     }
 
     fn derives_epsilon(&self, symbol: char) -> bool {
-        !self.is_term(symbol) && self.productions[&symbol].contains(&None)
+        !self.is_term(symbol)
+            && self
+                .productions
+                .iter()
+                .any(|(nterm, derivative)| *nterm == symbol && matches!(derivative, None))
     }
 
     fn derive(&self, symbol: char) -> Vec<Option<String>> {
         if self.is_nterm(symbol) {
-            self.productions[&symbol].clone()
+            self.productions
+                .iter()
+                .filter_map(|(nterm, derivative)| {
+                    if *nterm == symbol {
+                        Some(derivative.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
         } else {
             vec![Some(symbol.to_string())]
         }
@@ -275,20 +291,17 @@ mod grammar_assert {
 fn first_set_test() {
     use std::iter::FromIterator;
 
-    let mut grammar = LlkGrammar {
+    let grammar = LlkGrammar {
         term_symbols: vec!['a', 'b', '$'].drain(..).collect(),
         nterm_symbols: vec!['S', 'A'].drain(..).collect(),
         start_symbol: 'S',
         lookahead: 3,
-        productions: HashMap::new(),
+        productions: vec![
+            ('S', Some("Ab$".to_string())),
+            ('A', Some("aA".to_string())),
+            ('A', Some("a".to_string())),
+        ],
     };
-
-    grammar
-        .productions
-        .insert('S', vec![Some("Ab$".to_string())]);
-    grammar
-        .productions
-        .insert('A', vec![Some("aA".to_string()), Some("a".to_string())]);
 
     assert_eq!(
         grammar.first("S").unwrap(),
@@ -336,31 +349,25 @@ fn first_set_test() {
 fn follow_set_test() {
     use std::iter::FromIterator;
 
-    let mut grammar = LlkGrammar {
+    let grammar = LlkGrammar {
         term_symbols: vec!['a', 'b', '$'].drain(..).collect(),
         nterm_symbols: vec!['S', 'A'].drain(..).collect(),
         start_symbol: 'S',
         lookahead: 3,
-        productions: HashMap::new(),
+        productions: vec![
+            ('S', Some("Ab$".to_string())),
+            ('A', Some("aA".to_string())),
+            ('A', Some("a".to_string())),
+        ],
     };
 
-    grammar
-        .productions
-        .insert('S', vec![Some("Ab$".to_string())]);
-    grammar
-        .productions
-        .insert('A', vec![Some("aA".to_string()), Some("a".to_string())]);
-
-        assert_eq!(
-            grammar.follow('S').unwrap(),
-            HashSet::from_iter(vec![])
-        );
-        assert_eq!(
-            grammar.follow('A').unwrap(),
-            HashSet::from_iter(vec!["b$".to_string()])
-        );
-        assert!(matches!(
-            grammar.follow('a'),
-            Err(LlkError::FollowNotForNterm)
-        ));
+    assert_eq!(grammar.follow('S').unwrap(), HashSet::from_iter(vec![]));
+    assert_eq!(
+        grammar.follow('A').unwrap(),
+        HashSet::from_iter(vec!["b$".to_string()])
+    );
+    assert!(matches!(
+        grammar.follow('a'),
+        Err(LlkError::FollowNotForNterm)
+    ));
 }
