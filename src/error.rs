@@ -3,7 +3,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum LlkError {
-
+    UnknownSymbol(char),
+    InvalidEof,
 }
 
 impl fmt::Display for LlkError {
