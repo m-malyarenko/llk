@@ -20,7 +20,7 @@ impl LlkGrammar {
         nterm_symbols: HashSet<char>,
         start_symbol: char,
         lookahead: usize,
-        productions: Vec<(char, Option<String>)>,
+        productions: Vec<LlkProduction>,
     ) -> Result<LlkGrammar, LlkError> {
         unimplemented!()
     }
