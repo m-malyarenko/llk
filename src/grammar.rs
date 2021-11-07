@@ -12,7 +12,7 @@ pub struct LlkGrammar {
     productions: Vec<LlkProduction>,
 }
 
-pub(super) const EOF: char = '\u{0003}';
+pub(super) const EOF: char = '\0';
 
 impl LlkGrammar {
     pub fn new(
