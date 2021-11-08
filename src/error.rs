@@ -4,8 +4,8 @@ use std::fmt;
 #[derive(Debug)]
 pub enum LlkError {
     UnknownSymbol(char),
-    InvalidEof,
-    FollowNotForNterm,
+    IllegalOperation(String),
+    DerivationFailed(String),
 }
 
 impl fmt::Display for LlkError {
