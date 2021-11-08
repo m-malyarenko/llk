@@ -10,7 +10,19 @@ pub enum LlkError {
 
 impl fmt::Display for LlkError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        unimplemented!()
+        const ERROR_TYPE_NAME: &str = "llk";
+
+        match self {
+            LlkError::UnknownSymbol(symbol) => {
+                write!(f, "{}: unknown symbol '{}'", ERROR_TYPE_NAME, symbol)
+            }
+            LlkError::IllegalOperation(description) => {
+                write!(f, "{}: illegal operation: {}", ERROR_TYPE_NAME, description)
+            }
+            LlkError::DerivationFailed(description) => {
+                write!(f, "{}: derivation failed: {}", ERROR_TYPE_NAME, description)
+            }
+        }
     }
 }
 
