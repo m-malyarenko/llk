@@ -8,8 +8,8 @@ pub type LlkProduction = (char, Option<String>);
 pub struct LlkGrammar {
     term_symbols: HashSet<char>,
     nterm_symbols: HashSet<char>,
-    start_symbol: char,
-    lookahead: usize,
+    pub(super) start_symbol: char,
+    pub(super) lookahead: usize,
     productions: Vec<LlkProduction>,
 }
 
@@ -98,7 +98,9 @@ impl LlkGrammar {
 
     pub fn follow(&self, nterm: char) -> Result<HashSet<String>, LlkError> {
         if !self.is_nterm(nterm) {
-            return Err(LlkError::FollowNotForNterm);
+            return Err(LlkError::IllegalOperation(
+                "FOLLOW set for not non-terminal symbol".to_string(),
+            ));
         }
 
         fn inner<'a>(
@@ -139,17 +141,62 @@ impl LlkGrammar {
 
         Ok(inner(self, nterm, &mut HashSet::new()))
     }
-}
 
-impl LlkGrammar {
-    fn is_term(&self, symbol: char) -> bool {
+    pub fn create_lut(&self) -> LlkLut {
+        let mut lut = LlkLut::new();
+
+        for production in &self.productions {
+            let prod_nterm = production.0;
+            let prod_derivative = if let Some(derivative) = &production.1 {
+                derivative.clone()
+            } else {
+                String::default()
+            };
+
+            let first_set: HashSet<String> = self
+                .first(&prod_derivative)
+                .unwrap()
+                .drain()
+                .map(|s| s.unwrap_or_default())
+                .collect();
+            let follow_set: HashSet<String> = self.follow(prod_nterm).unwrap();
+            let choise_set: HashSet<String> = if follow_set.is_empty() {
+                first_set
+            } else {
+                first_set
+                    .iter()
+                    .flat_map(|s| {
+                        std::iter::repeat(s)
+                            .zip(&follow_set)
+                            .map(|(prefix, suffix)| {
+                                let mut choise_string = format!("{}{}", prefix, suffix);
+                                choise_string.truncate(self.lookahead);
+                                choise_string
+                            })
+                    })
+                    .collect()
+            };
+
+            lut.extend(
+                std::iter::repeat(prod_nterm)
+                    .zip(choise_set)
+                    .zip(std::iter::repeat(prod_derivative)),
+            );
+        }
+
+        lut
+    }
+
+    pub fn is_term(&self, symbol: char) -> bool {
         self.term_symbols.contains(&symbol) || symbol == EOF
     }
 
-    fn is_nterm(&self, symbol: char) -> bool {
+    pub fn is_nterm(&self, symbol: char) -> bool {
         self.nterm_symbols.contains(&symbol)
     }
+}
 
+impl LlkGrammar {
     fn derives_epsilon(&self, symbol: char) -> bool {
         !self.is_term(symbol)
             && self
@@ -241,36 +288,36 @@ impl LlkGrammar {
     }
 }
 
-mod grammar_assert {
+pub(super) mod grammar_assert {
     use super::LlkGrammar;
     use crate::error::LlkError;
     use std::collections::HashSet;
 
-    pub(super) fn assert_grammar(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub fn assert_grammar(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    pub(super) fn assert_symbols(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub fn assert_symbols(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    pub(super) fn assert_rules(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub fn assert_rules(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    pub(super) fn assert_lookahead(grammar: &LlkGrammar) -> Result<(), LlkError> {
+    pub fn assert_lookahead(grammar: &LlkGrammar) -> Result<(), LlkError> {
         unimplemented!()
     }
 
-    pub(super) fn get_reachable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
+    pub fn get_reachable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
         unimplemented!()
     }
 
-    pub(super) fn get_resolvable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
+    pub fn get_resolvable_nterms(grammar: &LlkGrammar) -> HashSet<char> {
         unimplemented!()
     }
 
-    pub(super) fn assert_input_string(grammar: &LlkGrammar, string: &str) -> Result<(), LlkError> {
+    pub fn assert_input_string(grammar: &LlkGrammar, string: &str) -> Result<(), LlkError> {
         let unknown_symbol = string
             .chars()
             .find(|c| !grammar.is_term(*c) && !grammar.is_nterm(*c));
@@ -281,7 +328,7 @@ mod grammar_assert {
             && !string.ends_with(super::EOF)
             && !string.chars().filter(|c| *c == super::EOF).count() == 1
         {
-            Err(LlkError::InvalidEof)
+            Err(LlkError::UnknownSymbol(super::EOF))
         } else {
             Ok(())
         }
@@ -369,6 +416,23 @@ fn follow_set_test() {
     );
     assert!(matches!(
         grammar.follow('a'),
-        Err(LlkError::FollowNotForNterm)
+        Err(LlkError::IllegalOperation(_))
     ));
+}
+
+#[test]
+fn create_lut_test() {
+    let grammar = LlkGrammar {
+        term_symbols: vec!['a', 'b', '$'].drain(..).collect(),
+        nterm_symbols: vec!['S', 'A'].drain(..).collect(),
+        start_symbol: 'S',
+        lookahead: 3,
+        productions: vec![
+            ('S', Some("Ab$".to_string())),
+            ('A', Some("aA".to_string())),
+            ('A', Some("a".to_string())),
+        ],
+    };
+
+    println!("Here comes the LUT: {:?}", grammar.create_lut());
 }
