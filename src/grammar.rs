@@ -1,21 +1,25 @@
-use std::collections::HashSet;
+pub mod parser;
+pub mod tree;
 
-use super::LlkLut;
+use std::collections::HashSet;
+use std::collections::HashMap;
+
 use crate::error::LlkError;
 
-pub type LlkProduction = (char, Option<String>);
+type LlkProduction = (char, Option<String>);
+type LlkLut = HashMap<(char, String), String>;
 
 pub struct LlkGrammar {
     term_symbols: HashSet<char>,
     nterm_symbols: HashSet<char>,
-    pub(super) start_symbol: char,
-    pub(super) lookahead: usize,
+    start_symbol: char,
+    lookahead: usize,
     productions: Vec<LlkProduction>,
 }
 
-pub(super) const EOF: char = '\0';
-
 impl LlkGrammar {
+    const EOF: char = '\0';
+
     pub fn new(
         term_symbols: HashSet<char>,
         nterm_symbols: HashSet<char>,
@@ -188,7 +192,7 @@ impl LlkGrammar {
     }
 
     pub fn is_term(&self, symbol: char) -> bool {
-        self.term_symbols.contains(&symbol) || symbol == EOF
+        self.term_symbols.contains(&symbol) || symbol == LlkGrammar::EOF
     }
 
     pub fn is_nterm(&self, symbol: char) -> bool {
@@ -324,11 +328,11 @@ pub(super) mod grammar_assert {
 
         if let Some(symbol) = unknown_symbol {
             Err(LlkError::UnknownSymbol(symbol))
-        } else if string.contains(super::EOF)
-            && !string.ends_with(super::EOF)
-            && !string.chars().filter(|c| *c == super::EOF).count() == 1
+        } else if string.contains(LlkGrammar::EOF)
+            && !string.ends_with(LlkGrammar::EOF)
+            && !string.chars().filter(|c| *c == LlkGrammar::EOF).count() == 1
         {
-            Err(LlkError::UnknownSymbol(super::EOF))
+            Err(LlkError::UnknownSymbol(LlkGrammar::EOF))
         } else {
             Ok(())
         }
