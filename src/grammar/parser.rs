@@ -16,11 +16,7 @@ impl LlkParser {
     }
 
     pub fn parse(&self, string: &str) -> Result<LlkTree, LlkError> {
-        for c in string.chars() {
-            if !self.grammar.is_term(c) {
-                return Err(LlkError::UnknownSymbol(c));
-            }
-        }
+        super::grammar_assert::assert_term_string(&self.grammar, string)?;
 
         let target_string: String = format!("{}{}", string, LlkGrammar::EOF);
         let lookahead_len = self.grammar.lookahead;
@@ -63,8 +59,6 @@ impl LlkParser {
 
 impl LlkParser {
     fn create_lut(grammar: &LlkGrammar) -> LlkLut {
-        use std::collections::HashSet;
-
         let mut lut = LlkLut::new();
 
         for production in &grammar.productions {
@@ -75,29 +69,7 @@ impl LlkParser {
                 String::default()
             };
 
-            let first_set: HashSet<String> = grammar
-                .first(&prod_derivative)
-                .unwrap()
-                .drain()
-                .map(|s| s.unwrap_or_default())
-                .collect();
-            let follow_set: HashSet<String> = grammar.follow(prod_nterm).unwrap();
-            let choise_set: HashSet<String> = if follow_set.is_empty() {
-                first_set
-            } else {
-                first_set
-                    .iter()
-                    .flat_map(|s| {
-                        std::iter::repeat(s)
-                            .zip(&follow_set)
-                            .map(|(prefix, suffix)| {
-                                let mut choise_string = format!("{}{}", prefix, suffix);
-                                choise_string.truncate(grammar.lookahead);
-                                choise_string
-                            })
-                    })
-                    .collect()
-            };
+            let choise_set = grammar.choise(production);
 
             lut.extend(
                 std::iter::repeat(prod_nterm)
