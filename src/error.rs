@@ -3,6 +3,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum LlkError {
+    InvalidGrammar(String),
     UnknownSymbol(char),
     IllegalOperation(String),
     DerivationFailed(String),
@@ -13,6 +14,9 @@ impl fmt::Display for LlkError {
         const ERROR_TYPE_NAME: &str = "llk";
 
         match self {
+            LlkError::InvalidGrammar(description) => {
+                write!(f, "{}: invalid grammar: {}", ERROR_TYPE_NAME, description)
+            }
             LlkError::UnknownSymbol(symbol) => {
                 write!(f, "{}: unknown symbol '{}'", ERROR_TYPE_NAME, symbol)
             }
