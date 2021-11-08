@@ -145,17 +145,17 @@ impl LlkGrammar {
 
         Ok(inner(self, nterm, &mut HashSet::new()))
     }
-
-    pub fn is_term(&self, symbol: char) -> bool {
-        self.term_symbols.contains(&symbol) || symbol == LlkGrammar::EOF
-    }
-
-    pub fn is_nterm(&self, symbol: char) -> bool {
-        self.nterm_symbols.contains(&symbol)
-    }
 }
 
 impl LlkGrammar {
+    fn is_term(&self, symbol: char) -> bool {
+        self.term_symbols.contains(&symbol) || symbol == LlkGrammar::EOF
+    }
+
+    fn is_nterm(&self, symbol: char) -> bool {
+        self.nterm_symbols.contains(&symbol)
+    }
+    
     fn derives_epsilon(&self, symbol: char) -> bool {
         !self.is_term(symbol)
             && self
