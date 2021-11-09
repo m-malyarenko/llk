@@ -232,7 +232,7 @@ impl LlkGrammar {
 
     fn get_term_prefixes(&self, string: &str) -> HashSet<String> {
         /* Recursive expansion procedure */
-        fn inner(grammar: &LlkGrammar, string: &str, prefix_len: usize) -> Vec<String> {
+        fn inner(grammar: &LlkGrammar, string: &str, prefix_len: usize) -> HashSet<String> {
             if let Some(leftmost_nterm) = string.chars().find(|&c| grammar.is_nterm(c)) {
                 /* String contains at least one non-terminal symbol */
                 let (prefix, suffix) = string.split_once(leftmost_nterm).unwrap();
@@ -272,7 +272,7 @@ impl LlkGrammar {
             }
         }
 
-        inner(self, string, self.lookahead).drain(..).collect()
+        inner(self, string, self.lookahead)
     }
 
     fn get_nterm_suffixes<'a>(&self, string: &'a str, nterm: char) -> Option<Vec<&'a str>> {
