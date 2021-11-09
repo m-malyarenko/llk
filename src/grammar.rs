@@ -243,7 +243,7 @@ impl LlkGrammar {
                         "{term_prefix:.limit$}",
                         term_prefix = prefix,
                         limit = prefix_len
-                    )]
+                    )].drain(..).collect()
                 } else {
                     let prefix_rest_len = prefix_len - prefix.len();
 
@@ -268,7 +268,7 @@ impl LlkGrammar {
                     "{term_prefix:.limit$}",
                     term_prefix = string,
                     limit = prefix_len
-                )]
+                )].drain(..).collect()
             }
         }
 
