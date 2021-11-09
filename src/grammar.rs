@@ -243,7 +243,9 @@ impl LlkGrammar {
                         "{term_prefix:.limit$}",
                         term_prefix = prefix,
                         limit = prefix_len
-                    )].drain(..).collect()
+                    )]
+                    .drain(..)
+                    .collect()
                 } else {
                     let prefix_rest_len = prefix_len - prefix.len();
 
@@ -268,7 +270,9 @@ impl LlkGrammar {
                     "{term_prefix:.limit$}",
                     term_prefix = string,
                     limit = prefix_len
-                )].drain(..).collect()
+                )]
+                .drain(..)
+                .collect()
             }
         }
 
@@ -404,6 +408,28 @@ mod grammar_assert {
                 invalid_lhs_list
             )));
         }
+        /* Check if all the RHS of productions contains only non-empty strings */
+        let empty_rhs_list: Vec<String> = grammar
+            .productions
+            .iter()
+            .filter_map(|p| {
+                if let Some(derivative) = &p.1 {
+                    if derivative.is_empty() {
+                        Some(LlkGrammar::format_production(p))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if !empty_rhs_list.is_empty() {
+            return Err(LlkError::InvalidGrammar(format!(
+                "empty but not epsilon production derivatives: {:?}",
+                empty_rhs_list
+            )));
+        }
         /* Check if all the RHS of productions contains only defined symbols */
         let invalid_rhs_list: Vec<String> = grammar
             .productions
@@ -528,7 +554,7 @@ mod grammar_assert {
         if !cross_lr_productions.is_empty() {
             return Err(LlkError::InvalidGrammar(format!(
                 "cross left-recursion in production(s): {:?}",
-                self_lr_productions
+                cross_lr_productions
             )));
         }
         /* Check if grammar has unreachable or unresolved non-terminal symbols */
