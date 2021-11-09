@@ -1,6 +1,8 @@
 pub mod parser;
 pub mod tree;
 
+mod grammar_json;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -43,7 +45,7 @@ impl LlkGrammar {
     }
 
     pub fn from_json(json_string: &str) -> Result<LlkGrammar, LlkError> {
-        unimplemented!()
+        grammar_json::parse_grammar_json(json_string)
     }
 
     pub fn first(&self, string: &str) -> Result<HashSet<Option<String>>, LlkError> {
@@ -545,7 +547,9 @@ mod grammar_assert {
             let choise_a = grammar.choise(production_a);
 
             for production_b in grammar.productions.iter().skip(i + 1) {
-                if production_a.0 == production_b.0 && !choise_a.is_disjoint(&grammar.choise(production_b)) {
+                if production_a.0 == production_b.0
+                    && !choise_a.is_disjoint(&grammar.choise(production_b))
+                {
                     return Err(LlkError::InvalidGrammar(format!(
                         "grammar rules do not define LL({k}) grammar:\n\
                             \tproduction collision: {prod_a} and {prod_b}\n\
