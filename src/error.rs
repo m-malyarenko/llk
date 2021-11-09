@@ -7,6 +7,7 @@ pub enum LlkError {
     UnknownSymbol(char),
     IllegalOperation(String),
     DerivationFailed(String),
+    GrammarFromJsonFailed(String),
 }
 
 impl fmt::Display for LlkError {
@@ -25,6 +26,9 @@ impl fmt::Display for LlkError {
             }
             LlkError::DerivationFailed(description) => {
                 write!(f, "{}: derivation failed: {}", ERROR_TYPE_NAME, description)
+            }
+            LlkError::GrammarFromJsonFailed(description) => {
+                write!(f, "{}: parsing grammar from JSON failed: {}", ERROR_TYPE_NAME, description)
             }
         }
     }
