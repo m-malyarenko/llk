@@ -16,14 +16,14 @@ impl LlkTree {
         })
     }
 
-    pub(super) fn push_node(&mut self, symbol: char) -> &mut LlkTree {
+    pub(super) fn push_node(&mut self, symbol: char) -> *mut LlkTree {
         if let LlkTree::Node(node) = self {
             let new_node = LlkTree::Node(LlkTreeNode {
                 symbol,
                 children: Vec::new(),
             });
             node.children.push(new_node);
-            node.children.last_mut().unwrap()
+            node.children.last_mut().unwrap() as *mut LlkTree
         } else {
             panic!(
                 "LlkTree fatal error:\
