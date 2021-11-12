@@ -31,6 +31,9 @@ impl LlkGrammar {
         lookahead: usize,
         productions: Vec<LlkProduction>,
     ) -> Result<LlkGrammar, LlkError> {
+        /* Replace empty production RHS strings with None */
+        let productions = LlkGrammar::normalize_productions(productions); 
+
         let grammar = LlkGrammar {
             term_symbols,
             nterm_symbols,
@@ -298,7 +301,9 @@ impl LlkGrammar {
 
         Some(suffixes)
     }
+}
 
+impl LlkGrammar {
     fn format_production((nterm, derivative): &LlkProduction) -> String {
         let derivative = if let Some(string) = derivative {
             string.clone()
@@ -307,6 +312,20 @@ impl LlkGrammar {
         };
 
         format!("({} -> {})", nterm, derivative)
+    }
+
+    fn normalize_productions(mut productions: Vec<LlkProduction>) -> Vec<LlkProduction> {
+        productions.drain(..).map(|(nterm, derivation)|{
+            if let Some(string) = &derivation {
+                if string.is_empty() {
+                    (nterm, None)
+                } else {
+                    (nterm, derivation)
+                }
+            } else {
+                (nterm, derivation)
+            }
+        }).collect()
     }
 }
 

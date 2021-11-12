@@ -110,6 +110,8 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
             productions.push((production_nterm, production_derivative))
         }
 
+        let productions = LlkGrammar::normalize_productions(productions);
+
         let grammar = LlkGrammar::new(
             term_symbols,
             nterm_symbols,
