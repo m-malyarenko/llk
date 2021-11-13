@@ -99,10 +99,9 @@ impl<'a> Iterator for LlkTreeIter<'a> {
             LlkTree::Node(node) => {
                 if let Some((parent_tree, child_idx)) = self.unvisited.pop() {
                     self.lnr(parent_tree, child_idx);
-                    Some(&node.symbol)
-                } else {
-                    None
                 }
+
+                Some(&node.symbol)
             }
         }
     }
