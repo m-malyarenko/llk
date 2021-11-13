@@ -624,7 +624,7 @@ mod grammar_assert {
         let mut next_reachable_set = HashSet::with_capacity(grammar.nterm_symbols.len() + 1);
         cur_reachable_set.insert(grammar.start_symbol);
 
-        while next_reachable_set.len() != cur_reachable_set.len() {
+        while next_reachable_set.len() != cur_reachable_set.len() {            
             /*
              * Inspect new non-terminal symbols
              * and extend next set with derivative non-terminal symbols
@@ -666,7 +666,7 @@ mod grammar_assert {
                 && s.as_ref()
                     .unwrap()
                     .chars()
-                    .all(|x| grammar.term_symbols.contains(&x))
+                    .all(|x| grammar.is_term(x))
             {
                 Some(c)
             } else {
@@ -674,7 +674,7 @@ mod grammar_assert {
             }
         }));
 
-        while next_resolvable_set.len() != cur_resolvable_set.len() {
+        while next_resolvable_set.len() != cur_resolvable_set.len() {            
             /*
              * Inspect non-terminal symbols that derives string with non-terminals in the current set
              * and extend next set with them
@@ -684,7 +684,7 @@ mod grammar_assert {
             next_resolvable_set.extend(grammar.productions.iter().filter_map(|(c, s)| {
                 if s.is_some()
                     && s.as_ref().unwrap().chars().all(|x| {
-                        grammar.term_symbols.contains(&x) || cur_resolvable_set.contains(&x)
+                        grammar.is_term(x) || cur_resolvable_set.contains(&x)
                     })
                 {
                     Some(c)
