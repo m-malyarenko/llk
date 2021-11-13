@@ -20,7 +20,7 @@ pub struct LlkGrammar {
 }
 
 impl LlkGrammar {
-    const EOF: char = '\0';
+    const EOF: char = '\u{0091}';
     const MIN_LOOKAHEAD: usize = 1;
     const MAX_LOOKAHEAD: usize = 16;
 
