@@ -32,7 +32,7 @@ impl LlkGrammar {
         productions: Vec<LlkProduction>,
     ) -> Result<LlkGrammar, LlkError> {
         /* Replace empty production RHS strings with None */
-        let productions = LlkGrammar::normalize_productions(productions); 
+        let productions = LlkGrammar::normalize_productions(productions, start_symbol); 
 
         let grammar = LlkGrammar {
             term_symbols,
@@ -313,17 +313,26 @@ impl LlkGrammar {
 
         format!("({} -> {})", nterm, derivative)
     }
-
-    fn normalize_productions(mut productions: Vec<LlkProduction>) -> Vec<LlkProduction> {
+    
+    fn normalize_productions(mut productions: Vec<LlkProduction>, start_symbol: char) -> Vec<LlkProduction> {
         productions.drain(..).map(|(nterm, derivation)|{
-            if let Some(string) = &derivation {
-                if string.is_empty() {
-                    (nterm, None)
+            if nterm == start_symbol {
+                if let Some(mut string) = derivation {
+                    string.push(LlkGrammar::EOF);
+                    (nterm, Some(string))
+                } else {
+                    (nterm, Some(LlkGrammar::EOF.to_string()))
+                }
+            } else {
+                if let Some(string) = derivation {
+                    if string.is_empty() {
+                        (nterm, None)
+                    } else {
+                        (nterm, Some(string))
+                    }
                 } else {
                     (nterm, derivation)
                 }
-            } else {
-                (nterm, derivation)
             }
         }).collect()
     }
