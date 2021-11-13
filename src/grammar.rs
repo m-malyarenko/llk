@@ -3,13 +3,11 @@ pub mod tree;
 
 mod grammar_json;
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::error::LlkError;
 
 type LlkProduction = (char, Option<String>);
-type LlkLut = HashMap<(char, String), String>;
 
 pub struct LlkGrammar {
     term_symbols: HashSet<char>,

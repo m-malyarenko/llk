@@ -5,6 +5,7 @@ pub enum LlkTree {
 
 pub struct LlkTreeNode {
     symbol: char,
+    production_id: Option<usize>,
     children: Vec<LlkTree>,
 }
 
@@ -12,6 +13,7 @@ impl LlkTree {
     pub(super) fn new(root_symbol: char) -> LlkTree {
         LlkTree::Node(LlkTreeNode {
             symbol: root_symbol,
+            production_id: None,
             children: Vec::new(),
         })
     }
@@ -20,6 +22,7 @@ impl LlkTree {
         if let LlkTree::Node(node) = self {
             let new_node = LlkTree::Node(LlkTreeNode {
                 symbol,
+                production_id: None,
                 children: Vec::new(),
             });
             node.children.push(new_node);
@@ -44,36 +47,38 @@ impl LlkTree {
         }
     }
 
-    pub fn iter(&self) -> LlkTreeIter {
-        let mut iter = LlkTreeIter {
+    pub(super) fn set_production_id(&mut self, id: usize) {
+        if let LlkTree::Node(node) = self {
+            node.production_id = Some(id)
+        } else {
+            panic!(
+                "LlkTree fatal error:\
+                 unexpected set_production_id method on LlkTree::Leaf enum item"
+            )
+        }
+    }
+
+    pub fn lrn(&self) -> LlkTreeLrnIter {
+        let mut iter = LlkTreeLrnIter {
             unvisited: Vec::new(),
         };
-        iter.lnr(self, 0);
+        iter.lrn(self, 0);
         iter
     }
 }
 
-impl<'a> IntoIterator for &'a LlkTree {
-    type Item = &'a char;
-    type IntoIter = LlkTreeIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-pub struct LlkTreeIter<'a> {
+pub struct LlkTreeLrnIter<'a> {
     unvisited: Vec<(&'a LlkTree, usize)>,
 }
 
-impl<'a> LlkTreeIter<'a> {
-    fn lnr(&mut self, tree: &'a LlkTree, child_idx: usize) {
+impl<'a> LlkTreeLrnIter<'a> {
+    fn lrn(&mut self, tree: &'a LlkTree, child_idx: usize) {
         if let LlkTree::Node(node) = tree {
             self.unvisited.push((tree, child_idx));
 
             if let Some(child) = node.children.get(self.unvisited.last().unwrap().1) {
                 self.unvisited.last_mut().unwrap().1 += 1;
-                self.lnr(child, 0);
+                self.lrn(child, 0);
             }
         } else {
             self.unvisited.push((tree, 0));
@@ -81,10 +86,10 @@ impl<'a> LlkTreeIter<'a> {
     }
 }
 
-impl<'a> Iterator for LlkTreeIter<'a> {
-    type Item = &'a char;
+impl<'a> Iterator for LlkTreeLrnIter<'a> {
+    type Item = (char, Option<usize>);
 
-    fn next(&mut self) -> Option<&'a char> {
+    fn next(&mut self) -> Option<(char, Option<usize>)> {
         let tree_node = self.unvisited.pop()?.0;
 
         match tree_node {
@@ -93,15 +98,15 @@ impl<'a> Iterator for LlkTreeIter<'a> {
                     .unvisited
                     .pop()
                     .expect("LlkTreeIter fatal error: tree leaf without parent node");
-                self.lnr(parent_tree, child_idx);
-                Some(symbol)
+                self.lrn(parent_tree, child_idx);
+                Some((*symbol, None))
             }
             LlkTree::Node(node) => {
                 if let Some((parent_tree, child_idx)) = self.unvisited.pop() {
-                    self.lnr(parent_tree, child_idx);
+                    self.lrn(parent_tree, child_idx);
                 }
 
-                Some(&node.symbol)
+                Some((node.symbol, node.production_id))
             }
         }
     }

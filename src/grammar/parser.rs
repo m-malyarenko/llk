@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 use crate::error::LlkError;
 use crate::grammar::tree::LlkTree;
-use crate::grammar::{LlkGrammar, LlkLut};
+use crate::grammar::{LlkGrammar};
+
+type LlkLut = HashMap<(char, String), (String, usize)>;
 
 pub struct LlkParser {
     grammar: LlkGrammar,
@@ -32,8 +36,8 @@ impl LlkParser {
 
         let mut lookahead_start = 0;
 
-        while lookahead_start < string.len() {
-            let string_rest = &target_string[lookahead_start..];
+        while lookahead_start < target_string.len() - 1 {
+            let target_string_rest = &target_string[lookahead_start..];
 
             /* Get the top of the stack */
             let top = *stack.last().unwrap();
@@ -42,26 +46,30 @@ impl LlkParser {
              * If stack top matches first symbol in the rest of the string
              * pop stack top symbol and continue from next input string symbol
              */
-            if self.grammar.is_term(top) && top == string_rest.chars().nth(0).unwrap() {
+            if self.grammar.is_term(top) && top == target_string_rest.chars().nth(0).unwrap() {
                 stack.pop();
                 lookahead_start += 1;
             } else {
-                let lookahead = if string_rest.len() >= lookahead_len {
-                    string_rest[..lookahead_len].to_owned()
+                let lookahead = if target_string_rest.len() >= lookahead_len {
+                    target_string_rest[..lookahead_len].to_owned()
                 } else {
-                    string_rest[..].to_owned()
+                    target_string_rest[..].to_owned()
                 };
 
-                if let Some(production_rhs) = self.lut.get(&(top, lookahead)) {
+                if let Some((rhs, id)) = self.lut.get(&(top, lookahead)) {
                     stack.pop();
 
                     /* Push production RHS to the stack */
-                    stack.extend(production_rhs.chars().rev());
+                    stack.extend(rhs.chars().rev());
 
                     /* Update derivation tree */
                     let tree_node_stack_top = tree_node_stack.pop().unwrap();
 
-                    for symbol in production_rhs.chars() {
+                    unsafe {
+                        (*tree_node_stack_top).set_production_id(*id);
+                    }
+
+                    for symbol in rhs.chars() {
                         if self.grammar.is_nterm(symbol) {
                             unsafe {
                                 let new_node = (*tree_node_stack_top).push_node(symbol);
@@ -87,7 +95,7 @@ impl LlkParser {
     fn create_lut(grammar: &LlkGrammar) -> LlkLut {
         let mut lut = LlkLut::new();
 
-        for production in &grammar.productions {
+        for (id, production) in grammar.productions.iter().enumerate() {
             let prod_nterm = production.0;
             let prod_derivative = if let Some(derivative) = &production.1 {
                 derivative.clone()
@@ -100,7 +108,7 @@ impl LlkParser {
             lut.extend(
                 std::iter::repeat(prod_nterm)
                     .zip(choise_set)
-                    .zip(std::iter::repeat(prod_derivative)),
+                    .zip(std::iter::repeat((prod_derivative, id))),
             );
         }
 
@@ -150,8 +158,8 @@ fn parsing_test() {
     println!("LUT: {:?}", parser.lut);
 
     let tree = parser.parse("aaab").unwrap();
-    for symbol in &tree {
-        print!("{}", symbol);
+    for (symbol, production_id) in tree.lrn() {
+        print!("{:?}", (symbol, production_id));
     }
     println!();
 }
