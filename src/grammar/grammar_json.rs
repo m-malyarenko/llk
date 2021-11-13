@@ -90,11 +90,11 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
             let production_derivative = production.get(PRODUCTION_DERIVATIVE_KEY);
             if let None = production_derivative {
                 return Err(LlkError::InvlaidGrammarJson(
-                    "invalid production derivative definition format".to_string(),
+                    "invalid production derivative definition".to_string(),
                 ));
             }
             let production_derivative = production_derivative.unwrap();
-            if !production_derivative.is_null() || !production_derivative.is_string() {
+            if !production_derivative.is_null() && !production_derivative.is_string() {
                 return Err(LlkError::InvlaidGrammarJson(
                     "invalid production derivative definition".to_string(),
                 ));
