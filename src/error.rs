@@ -4,10 +4,10 @@ use std::fmt;
 #[derive(Debug)]
 pub enum LlkError {
     InvalidGrammar(String),
+    InvlaidGrammarJson(String),
     UnknownSymbol(char),
     IllegalOperation(String),
     DerivationFailed(String),
-    GrammarFromJsonFailed(String),
 }
 
 impl fmt::Display for LlkError {
@@ -27,7 +27,7 @@ impl fmt::Display for LlkError {
             LlkError::DerivationFailed(description) => {
                 write!(f, "{}: derivation failed: {}", ERROR_TYPE_NAME, description)
             }
-            LlkError::GrammarFromJsonFailed(description) => {
+            LlkError::InvlaidGrammarJson(description) => {
                 write!(f, "{}: parsing grammar from JSON failed: {}", ERROR_TYPE_NAME, description)
             }
         }

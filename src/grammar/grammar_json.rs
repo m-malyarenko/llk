@@ -19,7 +19,7 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         /* Terminal symbols */
         let term_symbols = &json_values[TERM_SYMBOLS_KEY];
         if !term_symbols.is_string() {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid terminal symbols definition format".to_string(),
             ));
         }
@@ -28,7 +28,7 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         /* Non-terminal symbols */
         let nterm_symbols = &json_values[NTERM_SYMBOLS_KEY];
         if !nterm_symbols.is_string() {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid non-terminal symbols definition format".to_string(),
             ));
         }
@@ -37,13 +37,13 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         /* Start symbol */
         let start_symbol = &json_values[START_SYMBOL_KEY];
         if !start_symbol.is_string() {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid start symbol definition format".to_string(),
             ));
         }
         let start_symbol = start_symbol.as_str().unwrap();
         if start_symbol.len() != 1 {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid start symbol definition".to_string(),
             ));
         }
@@ -52,7 +52,7 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         /* Lookahead */
         let lookahead = &json_values[LOOKAHEAD_KEY];
         if !lookahead.is_u64() {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid lookahead definition format".to_string(),
             ));
         }
@@ -61,7 +61,7 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         /* Productions */
         let productions = &json_values[PRODUCTIONS_KEY];
         if !productions.is_array() {
-            return Err(LlkError::GrammarFromJsonFailed(
+            return Err(LlkError::InvlaidGrammarJson(
                 "invalid productions definition format".to_string(),
             ));
         }
@@ -69,33 +69,33 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
         let mut productions = Vec::new();
         for production in productions_array {
             if !production.is_object() {
-                return Err(LlkError::GrammarFromJsonFailed(
+                return Err(LlkError::InvlaidGrammarJson(
                     "invalid productions definition format".to_string(),
                 ));
             }
             if !production[PRODUCTION_NTERM_KEY].is_string() {
                 if !production.is_object() {
-                    return Err(LlkError::GrammarFromJsonFailed(
+                    return Err(LlkError::InvlaidGrammarJson(
                         "invalid production non-treminal definition format".to_string(),
                     ));
                 }
             }
             let production_nterm = production[PRODUCTION_NTERM_KEY].as_str().unwrap();
             if production_nterm.len() != 1 {
-                return Err(LlkError::GrammarFromJsonFailed(
+                return Err(LlkError::InvlaidGrammarJson(
                     "invalid production non-terminal definition".to_string(),
                 ));
             }
             let production_nterm = production_nterm.chars().nth(0).unwrap();
             let production_derivative = production.get(PRODUCTION_DERIVATIVE_KEY);
             if let None = production_derivative {
-                return Err(LlkError::GrammarFromJsonFailed(
+                return Err(LlkError::InvlaidGrammarJson(
                     "invalid production derivative definition".to_string(),
                 ));
             }
             let production_derivative = production_derivative.unwrap();
             if !production_derivative.is_null() || !production_derivative.is_string() {
-                return Err(LlkError::GrammarFromJsonFailed(
+                return Err(LlkError::InvlaidGrammarJson(
                     "invalid production derivative definition".to_string(),
                 ));
             }
@@ -122,7 +122,7 @@ pub(super) fn parse_grammar_json(json_string: &str) -> Result<LlkGrammar, LlkErr
 
         Ok(grammar)
     } else {
-        Err(LlkError::GrammarFromJsonFailed(
+        Err(LlkError::InvlaidGrammarJson(
             "invalid JSON string".to_string(),
         ))
     }
