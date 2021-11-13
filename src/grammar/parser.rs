@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::error::LlkError;
 use crate::grammar::tree::LlkTree;
-use crate::grammar::{LlkGrammar};
+use crate::grammar::LlkGrammar;
 
 type LlkLut = HashMap<(char, String), (String, usize)>;
 
@@ -89,6 +89,74 @@ impl LlkParser {
 
         Ok(tree_root)
     }
+
+    pub fn get_stat_string(&self) -> String {
+        let mut output_buffer = String::new();
+
+        output_buffer += &format!("LL({}) grammar:\n\n", self.grammar.lookahead);
+        output_buffer += &format!("Terminal symbols: {:?}\n", self.grammar.term_symbols);
+        output_buffer += &format!("Non-terminal symbols: {:?}\n", self.grammar.nterm_symbols);
+        output_buffer += &format!("Start symbol: {:?}\n", self.grammar.start_symbol);
+        output_buffer += "Productions:\n";
+
+        for (id, production) in self.grammar.productions.iter().enumerate() {
+            output_buffer += &format!("\t#{} {}\n", id, LlkGrammar::format_production(production));
+        }
+
+        output_buffer += &format!("\nLL({}) FIRST & FOLLOW:\n\n", self.grammar.lookahead);
+
+        for nterm in &self.grammar.nterm_symbols {
+            let first_set: std::collections::HashSet<String> = self
+                .grammar
+                .first(&nterm.to_string())
+                .unwrap()
+                .drain()
+                .map(|s| {
+                    if let Some(string) = s {
+                        string.replace(LlkGrammar::EOF, "")
+                    } else {
+                        String::default()
+                    }
+                })
+                .collect();
+            let follow_set: std::collections::HashSet<String> = self
+                .grammar
+                .follow(*nterm)
+                .unwrap()
+                .iter()
+                .map(|s| s.replace(LlkGrammar::EOF, ""))
+                .collect();
+
+            output_buffer += &format!("FIRST({}): {:?}\n", nterm, first_set);
+            output_buffer += &format!("FOLLOW({}): {:?}\n\n", nterm, follow_set);
+        }
+
+        output_buffer += &format!(
+            "LL({}) LUT:\n\
+        N - non-treminal symbol\n\
+        LA - lookahead string\n\n\
+        +{:-^3}+{:-^la_len$}+{:-^10}\n",
+            self.grammar.lookahead,
+            "N",
+            "LA",
+            "RULE",
+            la_len = self.grammar.lookahead + 2
+        );
+
+        for ((nterm, lookahead), (prod, id)) in &self.lut {
+            let lookahead = lookahead.replace(LlkGrammar::EOF, "\u{25A9}");
+            output_buffer += &format!(
+                "|{:^3}|{:^la_len$}| #{} {:<8}\n",
+                nterm,
+                lookahead,
+                id,
+                prod,
+                la_len = self.grammar.lookahead + 2
+            )
+        }
+
+        output_buffer
+    }
 }
 
 impl LlkParser {
@@ -155,7 +223,7 @@ fn parsing_test() {
     .unwrap();
 
     let parser = LlkParser::new(grammar);
-    println!("LUT: {:?}", parser.lut);
+    println!("{}", parser.get_stat_string());
 
     let tree = parser.parse("aaab").unwrap();
     for (symbol, production_id) in tree.lrn() {
