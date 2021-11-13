@@ -30,47 +30,51 @@ impl LlkParser {
         /* Init tree node stack with root tree */
         tree_node_stack.push(&mut tree_root as *mut LlkTree);
 
-        for start_symbol_idx in 0..string.len() {
-            let rest_target_string = &target_string[start_symbol_idx..];
-            let current_term = rest_target_string.chars().nth(0).unwrap();
+        let mut lookahead_start = 0;
+
+        while lookahead_start < string.len() {
+            let string_rest = &target_string[lookahead_start..];
 
             /* Get the top of the stack */
             let top = *stack.last().unwrap();
 
             /*
-             * If stack top is terminal symbol == stack top
-             * pop stack top symbol and continue
+             * If stack top matches first symbol in the rest of the string
+             * pop stack top symbol and continue from next input string symbol
              */
-            if self.grammar.is_term(top) && top == current_term {
+            if self.grammar.is_term(top) && top == string_rest.chars().nth(0).unwrap() {
                 stack.pop();
+                lookahead_start += 1;
             } else {
-                let lookahead = if rest_target_string.len() >= lookahead_len {
-                    rest_target_string[..lookahead_len].to_owned()
+                let lookahead = if string_rest.len() >= lookahead_len {
+                    string_rest[..lookahead_len].to_owned()
                 } else {
-                    rest_target_string[..].to_owned()
+                    string_rest[..].to_owned()
                 };
 
                 if let Some(production_rhs) = self.lut.get(&(top, lookahead)) {
+                    stack.pop();
+
                     /* Push production RHS to the stack */
                     stack.extend(production_rhs.chars().rev());
 
                     /* Update derivation tree */
                     let tree_node_stack_top = tree_node_stack.pop().unwrap();
 
-                    for symbol in production_rhs.chars().rev() {
+                    for symbol in production_rhs.chars() {
                         if self.grammar.is_nterm(symbol) {
                             unsafe {
                                 let new_node = (*tree_node_stack_top).push_node(symbol);
                                 tree_node_stack.push(new_node);
                             }
-                        } else {
+                        } else if symbol != LlkGrammar::EOF {
                             unsafe {
                                 (*tree_node_stack_top).push_leaf(symbol);
                             }
                         }
                     }
                 } else {
-                    return Err(LlkError::DerivationFailed(String::default())); // FIXME Исправить сообщение ошибки
+                    return Err(LlkError::DerivationFailed(String::default()));
                 }
             }
         }
@@ -119,4 +123,35 @@ fn create_lut_test() {
     };
 
     println!("Here comes the LUT: {:?}", LlkParser::create_lut(&grammar));
+}
+
+#[test]
+fn parsing_test() {
+    let term_symbols = vec!['a', 'b'].drain(..).collect();
+    let nterm_symbols = vec!['S', 'A'].drain(..).collect();
+    let start_symbol = 'S';
+    let lookahead = 2;
+    let productions = vec![
+        ('S', Some("Ab".to_string())),
+        ('A', Some("aA".to_string())),
+        ('A', Some("a".to_string())),
+    ];
+
+    let grammar = LlkGrammar::new(
+        term_symbols,
+        nterm_symbols,
+        start_symbol,
+        lookahead,
+        productions,
+    )
+    .unwrap();
+
+    let parser = LlkParser::new(grammar);
+    println!("LUT: {:?}", parser.lut);
+
+    let tree = parser.parse("aaab").unwrap();
+    for symbol in &tree {
+        print!("{}", symbol);
+    }
+    println!();
 }
