@@ -65,6 +65,40 @@ impl LlkTree {
         iter.lrn(self, 0);
         iter
     }
+
+    fn pretty_print(&self) -> String {
+        fn inner(tree: &LlkTree, buffer: &mut String, mut ident: String, is_last: bool) {
+            buffer.push_str(&ident);
+            
+            if is_last {
+                buffer.push_str("+-");
+                ident.push_str("  ");
+            } else {
+                buffer.push_str("|-");
+                ident.push_str("| ");
+            }
+
+            let symbol = match tree {
+                LlkTree::Node(node) => {
+                    node.symbol
+                }
+                LlkTree::Leaf(symbol) => *symbol
+            };
+            
+            buffer.push_str(&format!("{}\n", symbol));
+
+            if let LlkTree::Node(node) = tree {
+                for (idx, child) in node.children.iter().enumerate() {
+                    inner(child, buffer, ident.clone(), idx == node.children.len() - 1);
+                }
+            }
+
+        }
+
+        let mut buffer = String::new();
+        inner(self, &mut buffer, "".to_string(), true);
+        buffer
+    }
 }
 
 pub struct LlkTreeLrnIter<'a> {
@@ -109,5 +143,11 @@ impl<'a> Iterator for LlkTreeLrnIter<'a> {
                 Some((node.symbol, node.production_id))
             }
         }
+    }
+}
+
+impl std::fmt::Display for LlkTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.pretty_print())
     }
 }
