@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use text_colorizer::Colorize;
 
 use crate::error::LlkError;
 use crate::grammar::tree::LlkTree;
@@ -46,17 +47,28 @@ impl LlkParser {
              * If stack top matches first symbol in the rest of the string
              * pop stack top symbol and continue from next input string symbol
              */
-            if self.grammar.is_term(top) && top == target_string_rest.chars().nth(0).unwrap() {
-                stack.pop();
-                lookahead_start += 1;
-            } else {
-                let lookahead = if target_string_rest.len() >= lookahead_len {
-                    target_string_rest[..lookahead_len].to_owned()
+            if self.grammar.is_term(top) {
+                let target_string_rest_head = target_string_rest.chars().nth(0).unwrap();
+
+                if top == target_string_rest_head {
+                    stack.pop();
+                    lookahead_start += 1;
                 } else {
-                    target_string_rest[..].to_owned()
+                    return Err(LlkError::DerivationFailed(format!(
+                        "unexpected terminal symbol in sequence '{}{}{}'",
+                        &target_string[..lookahead_start],
+                        target_string_rest_head.to_string().red(),
+                        target_string_rest.chars().skip(1).collect::<String>()
+                    )));
+                }
+            } else {
+                let lookahead = if target_string_rest.chars().count() > lookahead_len {
+                    &target_string_rest[..lookahead_len]
+                } else {
+                    target_string_rest
                 };
 
-                if let Some((rhs, id)) = self.lut.get(&(top, lookahead)) {
+                if let Some((rhs, id)) = self.lut.get(&(top, lookahead.to_owned())) {
                     stack.pop();
 
                     /* Push production RHS to the stack */
@@ -82,7 +94,10 @@ impl LlkParser {
                         }
                     }
                 } else {
-                    return Err(LlkError::DerivationFailed(String::default()));
+                    return Err(LlkError::DerivationFailed(format!(
+                        "no LUT cell do derive '{}' with lookahead '{}'",
+                        top, lookahead
+                    )));
                 }
             }
         }
@@ -110,7 +125,7 @@ impl LlkParser {
                 .grammar
                 .first(&nterm.to_string())
                 .unwrap()
-                .drain()
+                .into_iter()
                 .map(|s| {
                     if let Some(string) = s {
                         string.replace(LlkGrammar::EOF, "")
@@ -204,13 +219,17 @@ fn create_lut_test() {
 #[test]
 fn parsing_test() {
     let term_symbols = vec!['a', 'b'].drain(..).collect();
-    let nterm_symbols = vec!['S', 'A'].drain(..).collect();
+    let nterm_symbols = vec!['S', 'A', 'B'].drain(..).collect();
     let start_symbol = 'S';
     let lookahead = 2;
     let productions = vec![
-        ('S', Some("Ab".to_string())),
+        ('S', Some("aA".to_string())),
+        ('S', Some("B".to_string())),
         ('A', Some("aA".to_string())),
         ('A', Some("a".to_string())),
+        ('A', Some("b".to_string())),
+        ('B', Some("bB".to_string())),
+        ('B', Some("b".to_string())),
     ];
 
     let grammar = LlkGrammar::new(
@@ -222,10 +241,12 @@ fn parsing_test() {
     )
     .unwrap();
 
+    println!("Grammar created");
+
     let parser = LlkParser::new(grammar);
     println!("{}", parser.get_stat_string());
 
-    let tree = parser.parse("aaab").unwrap();
+    let tree = parser.parse("aaaab").unwrap();
     for (symbol, production_id) in tree.lrn() {
         print!("{:?}", (symbol, production_id));
     }
