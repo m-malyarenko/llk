@@ -174,7 +174,7 @@ impl LlkGrammar {
         let first_set: HashSet<String> = self
             .first(&prod_derivative)
             .unwrap()
-            .drain()
+            .into_iter()
             .map(|s| s.unwrap_or_default())
             .collect();
         let follow_set: HashSet<String> = self.follow(prod_nterm).unwrap();
@@ -245,14 +245,14 @@ impl LlkGrammar {
                         term_prefix = prefix,
                         limit = prefix_len
                     )]
-                    .drain(..)
+                    .into_iter()
                     .collect()
                 } else {
                     let prefix_rest_len = prefix_len - prefix.len();
 
                     grammar
                         .derive(leftmost_nterm)
-                        .drain(..)
+                        .into_iter()
                         .map(|d| d.unwrap_or_default())
                         .filter(|s| !s.starts_with(leftmost_nterm))
                         .flat_map(|s| inner(grammar, &(s + suffix), prefix_rest_len))
@@ -272,7 +272,7 @@ impl LlkGrammar {
                     term_prefix = string,
                     limit = prefix_len
                 )]
-                .drain(..)
+                .into_iter()
                 .collect()
             }
         }
@@ -593,7 +593,6 @@ mod grammar_assert {
                 symbols = difference
             )));
         }
-
         /* Check is grammar is LL(k) */
         for (i, production_a) in grammar.productions.iter().enumerate() {
             let choise_a = grammar.choise(production_a);
@@ -613,7 +612,7 @@ mod grammar_assert {
                 }
             }
         }
-
+        println!("LL(k) asserted");
         Ok(())
     }
 
@@ -634,7 +633,7 @@ mod grammar_assert {
                 .iter()
                 .flat_map(|c| grammar.derive(*c))
                 .collect::<HashSet<Option<String>>>()
-                .drain()
+                .into_iter()
                 .filter_map(|d| d)
                 .collect();
 
