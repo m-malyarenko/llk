@@ -30,7 +30,7 @@ impl LlkGrammar {
         productions: Vec<LlkProduction>,
     ) -> Result<LlkGrammar, LlkError> {
         /* Replace empty production RHS strings with None */
-        let productions = LlkGrammar::normalize_productions(productions, start_symbol); 
+        let productions = LlkGrammar::normalize_productions(productions, start_symbol);
 
         let grammar = LlkGrammar {
             term_symbols,
@@ -57,7 +57,7 @@ impl LlkGrammar {
         if string.is_empty() {
             /* Calculate FIRST set of ε */
             first_set.insert(None);
-        } else if string.len() == 1 {
+        } else if string.chars().count() == 1 {
             /* Calculate FIRST set of a symbol */
             let symbol = string.chars().nth(0).unwrap();
 
@@ -138,7 +138,7 @@ impl LlkGrammar {
                 let prod_derivative = (&production.1).as_ref().unwrap();
 
                 if let Some(suffixes) = grammar.get_nterm_suffixes(prod_derivative, nterm) {
-                    let mut suffixes_first_set: HashSet<Option<String>> = suffixes
+                    let suffixes_first_set: HashSet<Option<String>> = suffixes
                         .iter()
                         .flat_map(|s| grammar.first(s).unwrap())
                         .collect();
@@ -151,7 +151,7 @@ impl LlkGrammar {
                         follow_set.extend(inner(grammar, prod_nterm, visited));
                     }
 
-                    follow_set.extend(suffixes_first_set.drain().filter_map(|s| s))
+                    follow_set.extend(suffixes_first_set.into_iter().filter_map(|s| s))
                 }
             }
 
@@ -187,8 +187,10 @@ impl LlkGrammar {
                     std::iter::repeat(s)
                         .zip(&follow_set)
                         .map(|(prefix, suffix)| {
-                            let mut choise_string = format!("{}{}", prefix, suffix);
-                            choise_string.truncate(self.lookahead);
+                            let choise_string = format!("{}{}", prefix, suffix)
+                                .chars()
+                                .take(self.lookahead)
+                                .collect();
                             choise_string
                         })
                 })
@@ -311,28 +313,34 @@ impl LlkGrammar {
 
         format!("({} -> {})", nterm, derivative)
     }
-    
-    fn normalize_productions(mut productions: Vec<LlkProduction>, start_symbol: char) -> Vec<LlkProduction> {
-        productions.drain(..).map(|(nterm, derivation)|{
-            if nterm == start_symbol {
-                if let Some(mut string) = derivation {
-                    string.push(LlkGrammar::EOF);
-                    (nterm, Some(string))
-                } else {
-                    (nterm, Some(LlkGrammar::EOF.to_string()))
-                }
-            } else {
-                if let Some(string) = derivation {
-                    if string.is_empty() {
-                        (nterm, None)
-                    } else {
+
+    fn normalize_productions(
+        mut productions: Vec<LlkProduction>,
+        start_symbol: char,
+    ) -> Vec<LlkProduction> {
+        productions
+            .drain(..)
+            .map(|(nterm, derivation)| {
+                if nterm == start_symbol {
+                    if let Some(mut string) = derivation {
+                        string.push(LlkGrammar::EOF);
                         (nterm, Some(string))
+                    } else {
+                        (nterm, Some(LlkGrammar::EOF.to_string()))
                     }
                 } else {
-                    (nterm, derivation)
+                    if let Some(string) = derivation {
+                        if string.is_empty() {
+                            (nterm, None)
+                        } else {
+                            (nterm, Some(string))
+                        }
+                    } else {
+                        (nterm, derivation)
+                    }
                 }
-            }
-        }).collect()
+            })
+            .collect()
     }
 }
 
@@ -621,7 +629,7 @@ mod grammar_assert {
         let mut next_reachable_set = HashSet::with_capacity(grammar.nterm_symbols.len() + 1);
         cur_reachable_set.insert(grammar.start_symbol);
 
-        while next_reachable_set.len() != cur_reachable_set.len() {            
+        while next_reachable_set.len() != cur_reachable_set.len() {
             /*
              * Inspect new non-terminal symbols
              * and extend next set with derivative non-terminal symbols
@@ -659,19 +667,14 @@ mod grammar_assert {
 
         /* Include all the one-step resolvable non-terminal symbols into the initial set */
         cur_resolvable_set.extend(grammar.productions.iter().filter_map(|(c, s)| {
-            if s.is_some()
-                && s.as_ref()
-                    .unwrap()
-                    .chars()
-                    .all(|x| grammar.is_term(x))
-            {
+            if s.is_some() && s.as_ref().unwrap().chars().all(|x| grammar.is_term(x)) {
                 Some(c)
             } else {
                 None
             }
         }));
 
-        while next_resolvable_set.len() != cur_resolvable_set.len() {            
+        while next_resolvable_set.len() != cur_resolvable_set.len() {
             /*
              * Inspect non-terminal symbols that derives string with non-terminals in the current set
              * and extend next set with them
@@ -680,9 +683,10 @@ mod grammar_assert {
              */
             next_resolvable_set.extend(grammar.productions.iter().filter_map(|(c, s)| {
                 if s.is_some()
-                    && s.as_ref().unwrap().chars().all(|x| {
-                        grammar.is_term(x) || cur_resolvable_set.contains(&x)
-                    })
+                    && s.as_ref()
+                        .unwrap()
+                        .chars()
+                        .all(|x| grammar.is_term(x) || cur_resolvable_set.contains(&x))
                 {
                     Some(c)
                 } else {
